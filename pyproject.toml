@@ -12,9 +12,7 @@ python_files = "test_*.py"
 strict = true
 python_version = "3.10"
 
-[[tool.mypy.overrides]]
-module = "test.*"
-allow_untyped_defs = true
+# Tests are excluded from mypy by design (typecheck target runs `mypy tools/ eval/` only)
 
 [[tool.mypy.overrides]]
 module = ["bpy", "mathutils"]

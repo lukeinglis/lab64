@@ -26,10 +26,7 @@ import logging
 import math
 import os
 import sys
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    import bpy as _bpy_type  # noqa: F401
+from typing import Any
 
 LAB64_TOOLS_VERSION = "lab64 tools v0.1.0"
 

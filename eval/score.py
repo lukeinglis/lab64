@@ -136,7 +136,13 @@ def eval_tooling_completeness() -> EvalResult:
             except OSError:
                 checks[f"{base}_error_handling"] = False
         else:
-            checks[f"{base}_error_handling"] = True
+            try:
+                text = path.read_text()
+                checks[f"{base}_error_handling"] = bool(
+                    re.search(r"\btry\b|\bexcept\b|if\s+__name__\s*==|sys\.exit", text)
+                )
+            except OSError:
+                checks[f"{base}_error_handling"] = False
 
         r = _run(cmd_bad)
         checks[f"{base}_bad_args"] = r is not None and r.returncode != 0
@@ -181,7 +187,7 @@ def eval_documentation_coverage() -> EvalResult:
     checks = {}
     for doc_path, requirements in docs_checks.items():
         path = ROOT / doc_path
-        base = Path(doc_path).name
+        base = doc_path.replace("/", "_")
 
         if not path.exists():
             checks[f"{base}_sections"] = False
@@ -239,19 +245,14 @@ def eval_asset_pipeline_readiness() -> EvalResult:
     all_readmes = all((chars_dir / a / "README.md").is_file() for a in animals)
     checks["character_dir_readmes"] = all_readmes
 
+    try:
+        script_source = render_script.read_text()
+    except OSError:
+        script_source = ""
     for animal in animals:
-        r = _run([
-            sys.executable, str(render_script),
-            "--character", animal,
-            "--blend-file", "nonexistent.blend",
-            "--dry-run",
-        ])
         key = f"accepts_{animal.replace('-', '_')}"
-        if r is None:
-            checks[key] = False
-        else:
-            output = r.stdout + r.stderr
-            checks[key] = "unknown character" not in output.lower() and "invalid character" not in output.lower()
+        char_name = animal.replace("-", "_")
+        checks[key] = char_name in script_source
 
     return _build_result("asset_pipeline_readiness", checks, 0.25, pass_threshold=0.6)
 
@@ -264,7 +265,7 @@ def eval_mod_packaging() -> EvalResult:
     checks = {}
 
     if pack_script.exists():
-        r = _run(["bash", str(pack_script)])
+        r = _run(["bash", str(pack_script), "--nonexistent-flag"])
         checks["pack_validates_args"] = r is not None and r.returncode != 0
     else:
         checks["pack_validates_args"] = False

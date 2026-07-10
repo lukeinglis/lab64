@@ -43,7 +43,7 @@ doctor: ## Check all dependencies
 	tools/lab64 doctor
 
 pre-commit-install: ## Install pre-commit hooks
-	pip install pre-commit
+	python3 -m pip install pre-commit
 	pre-commit install
 
 $(BATS):

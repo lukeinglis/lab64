@@ -46,15 +46,15 @@ cmd_version() {
     echo "$LAB64_VERSION"
     echo ""
     printf "python3:     "
-    python3 --version 2>/dev/null || echo "not found"
+    if command -v python3 >/dev/null 2>&1; then python3 --version 2>/dev/null; else echo "not found"; fi
     printf "blender:     "
-    blender --version 2>/dev/null | head -1 || echo "not found"
+    if command -v blender >/dev/null 2>&1; then blender --version 2>/dev/null | head -1; else echo "not found"; fi
     printf "shellcheck:  "
-    shellcheck --version 2>/dev/null | grep '^version:' || echo "not found"
+    if command -v shellcheck >/dev/null 2>&1; then shellcheck --version 2>/dev/null | grep '^version:'; else echo "not found"; fi
     printf "zip:         "
-    zip --version 2>/dev/null | head -2 | tail -1 || echo "not found"
+    if command -v zip >/dev/null 2>&1; then zip --version 2>/dev/null | head -2 | tail -1; else echo "not found"; fi
     printf "unzip:       "
-    unzip -v 2>/dev/null | head -1 || echo "not found"
+    if command -v unzip >/dev/null 2>&1; then unzip -v 2>/dev/null | head -1; else echo "not found"; fi
 }
 
 cmd_doctor() {
@@ -83,7 +83,17 @@ cmd_doctor() {
     check_dep "zip" "zip"
     check_dep "unzip" "unzip"
     check_dep "shellcheck" "shellcheck"
-    check_dep "bats" "bats"
+    check_dep_bats() {
+        printf "  %-14s" "bats:"
+        if command -v bats >/dev/null 2>&1 || [ -x "$SCRIPT_DIR/../test/libs/bats-core/bin/bats" ]; then
+            echo "OK"
+            pass=$((pass + 1))
+        else
+            echo "MISSING"
+            fail=$((fail + 1))
+        fi
+    }
+    check_dep_bats
     check_dep "pytest" "pytest"
 
     echo ""

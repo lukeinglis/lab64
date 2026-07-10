@@ -20,7 +20,6 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-        types: [python]
 
       - id: bats
         name: bats
@@ -28,4 +27,3 @@ repos:
         language: script
         pass_filenames: false
         always_run: true
-        files: \.bats$
