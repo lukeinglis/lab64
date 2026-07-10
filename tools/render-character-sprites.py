@@ -177,7 +177,7 @@ def render_nameplate(character, output_dir):
     import bpy
 
     setup_render_settings(64, 12)
-    capitalized = character.replace("_", "").title().replace(" ", "")
+    capitalized = "".join(word.capitalize() for word in character.split("_"))
     filepath = os.path.join(output_dir, f"gTexture{capitalized}.png")
     bpy.context.scene.render.filepath = filepath
     bpy.ops.render.render(write_still=True)

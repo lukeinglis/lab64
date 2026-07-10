@@ -36,7 +36,7 @@ fi
 CHARACTER="$1"
 SPRITE_DIR="$2"
 OUTPUT_DIR="$PROJECT_ROOT/mods/animal-pack"
-CAPITALIZED=$(echo "$CHARACTER" | sed 's/_//g' | sed 's/\b\(.\)/\u\1/g' | sed 's/ //g')
+CAPITALIZED=$(echo "$CHARACTER" | awk -F'_' '{for(i=1;i<=NF;i++){$i=toupper(substr($i,1,1)) substr($i,2)}}1' OFS='')
 
 echo "Packing character mod: $CHARACTER"
 echo "  Sprite directory: $SPRITE_DIR"
