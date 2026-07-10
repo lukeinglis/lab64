@@ -89,6 +89,28 @@ Development (modeling, scripting, documentation) happens on macOS. Runtime testi
 ```bash
 git clone git@github.com:your-org/lab64.git
 cd lab64
+git submodule update --init --recursive
+```
+
+### Developer Setup
+
+Install pre-commit hooks to run ShellCheck and tests automatically before each commit:
+
+```bash
+make pre-commit-install
+```
+
+This installs the `pre-commit` Python package and configures Git hooks. The hooks run:
+
+- **Trailing whitespace** and **end-of-file** fixers
+- **ShellCheck** on all `tools/*.sh` scripts
+- **pytest** on Python tests in `test/`
+- **Bats** on shell tests in `test/`
+
+To run all hooks manually against the entire codebase:
+
+```bash
+make lint
 ```
 
 ---
