@@ -41,7 +41,7 @@ class JSONFormatter(logging.Formatter):
             "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime(
                 "%Y-%m-%dT%H:%M:%SZ"
             ),
-            "level": record.levelname,
+            "level": "WARN" if record.levelname == "WARNING" else record.levelname,
             "script": self.script_name,
             "message": record.getMessage(),
             "run_id": self.run_id,
@@ -106,6 +106,8 @@ def setup_logging(json_output=False, quiet=False, verbose=False):
 
 def log_ctx(logger, level, message, context=None):
     """Log a message with optional structured context."""
+    if not logger.isEnabledFor(level):
+        return
     record = logger.makeRecord(
         logger.name, level, "(unknown)", 0, message, (), None
     )
