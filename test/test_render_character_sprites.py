@@ -5,9 +5,12 @@ The script splits sys.argv on '--' to extract its own arguments,
 so we mock sys.argv to simulate Blender's invocation pattern.
 """
 
+from __future__ import annotations
+
 import importlib.util
 import os
 import sys
+from types import ModuleType
 from unittest.mock import patch
 
 import pytest
@@ -17,8 +20,9 @@ SCRIPT_PATH = os.path.join(
 )
 
 
-def load_render_module():
+def load_render_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("render_sprites", SCRIPT_PATH)
+    assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

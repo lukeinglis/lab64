@@ -1,0 +1,29 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+
+  - repo: local
+    hooks:
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck -x -e SC1091,SC2034,SC2317
+        language: system
+        files: ^tools/.*\.sh$
+        types: [shell]
+
+      - id: pytest
+        name: pytest
+        entry: python3 -m pytest test/ -v
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: bats
+        name: bats
+        entry: test/libs/bats-core/bin/bats test/
+        language: script
+        pass_filenames: false
+        always_run: true

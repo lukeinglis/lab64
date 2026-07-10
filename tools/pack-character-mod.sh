@@ -258,7 +258,7 @@ log_info "Validating dimensions..."
 validate_dimensions "$PORTRAIT" 32 32
 validate_dimensions "$NAMEPLATE" 64 12
 
-for face in "$SPRITE_DIR"/${CHARACTER}_face_*.png; do
+for face in "$SPRITE_DIR"/"${CHARACTER}"_face_*.png; do
     validate_dimensions "$face" 64 64
 done
 
@@ -294,11 +294,11 @@ log_debug "Copying kart frames to staging..."
 
 # Copy character files into staging
 mkdir -p "$STAGING/${CHARACTER}_kart"
-cp "$KART_DIR"/${CHARACTER}_kart_frame*.png "$STAGING/${CHARACTER}_kart/"
+cp "$KART_DIR"/"${CHARACTER}"_kart_frame*.png "$STAGING/${CHARACTER}_kart/"
 
 log_debug "Copying portrait, faces, nameplate to staging..."
 cp "$PORTRAIT" "$STAGING/"
-cp "$SPRITE_DIR"/${CHARACTER}_face_*.png "$STAGING/"
+cp "$SPRITE_DIR"/"${CHARACTER}"_face_*.png "$STAGING/"
 cp "$NAMEPLATE" "$STAGING/"
 
 log_debug "Generating mods.toml..."

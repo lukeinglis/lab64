@@ -17,6 +17,8 @@ Renders:
     - Nameplate at 64x12
 """
 
+from __future__ import annotations
+
 import argparse
 import datetime
 import json
@@ -24,6 +26,7 @@ import logging
 import math
 import os
 import sys
+from typing import Any
 
 LAB64_TOOLS_VERSION = "lab64 tools v0.1.0"
 
@@ -31,13 +34,13 @@ LAB64_TOOLS_VERSION = "lab64 tools v0.1.0"
 class JSONFormatter(logging.Formatter):
     """Emit log records as single-line JSON objects to stderr."""
 
-    def __init__(self, script_name, run_id):
+    def __init__(self, script_name: str, run_id: str) -> None:
         super().__init__()
         self.script_name = script_name
         self.run_id = run_id
 
-    def format(self, record):
-        entry = {
+    def format(self, record: logging.LogRecord) -> str:
+        entry: dict[str, Any] = {
             "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime(
                 "%Y-%m-%dT%H:%M:%SZ"
             ),
@@ -63,7 +66,7 @@ class HumanFormatter(logging.Formatter):
     }
     RESET = "\033[0m"
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         color = self.COLORS.get(record.levelname, "")
         reset = self.RESET if color else ""
         prefix = f"[{record.levelname}]"
@@ -72,16 +75,19 @@ class HumanFormatter(logging.Formatter):
         return f"{prefix} {record.getMessage()}"
 
 
-def _generate_run_id():
+def _generate_run_id() -> str:
     ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
     return f"{ts}-{os.getpid()}"
 
 
-def setup_logging(json_output=False, quiet=False, verbose=False):
+def setup_logging(
+    json_output: bool = False, quiet: bool = False, verbose: bool = False
+) -> logging.Logger:
     """Configure the root logger based on CLI flags and LOG_FORMAT env var."""
     log_format = os.environ.get("LOG_FORMAT", "human")
     run_id = os.environ.get("RUN_ID", _generate_run_id())
 
+    formatter: logging.Formatter
     if json_output or log_format == "json":
         formatter = JSONFormatter("render-character-sprites", run_id)
     else:
@@ -104,7 +110,12 @@ def setup_logging(json_output=False, quiet=False, verbose=False):
     return logger
 
 
-def log_ctx(logger, level, message, context=None):
+def log_ctx(
+    logger: logging.Logger,
+    level: int,
+    message: str,
+    context: dict[str, Any] | None = None,
+) -> None:
     """Log a message with optional structured context."""
     if not logger.isEnabledFor(level):
         return
@@ -112,11 +123,11 @@ def log_ctx(logger, level, message, context=None):
         logger.name, level, "(unknown)", 0, message, (), None
     )
     if context:
-        record.context = context
+        record.context = context  # noqa: dynamic attr read by JSONFormatter
     logger.handle(record)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     # Blender passes everything after '--' to the script
     argv = sys.argv
     if "--" in argv:
@@ -202,7 +213,7 @@ def parse_args():
     return args
 
 
-def _list_characters(json_output):
+def _list_characters(json_output: bool) -> None:
     chars_dir = os.path.join("assets", "characters")
     characters = []
     if os.path.isdir(chars_dir):
@@ -236,7 +247,7 @@ def _list_characters(json_output):
                 print(f"  {c['name']} ({blends})")
 
 
-def _json_result(status, message, details):
+def _json_result(status: str, message: str, details: dict[str, Any]) -> None:
     result = {
         "status": status,
         "message": message,
@@ -248,7 +259,7 @@ def _json_result(status, message, details):
     print(json.dumps(result))
 
 
-def setup_render_settings(resolution_x, resolution_y):
+def setup_render_settings(resolution_x: int, resolution_y: int) -> None:
     """Configure render settings for N64-style flat sprite output."""
     import bpy
 
@@ -263,7 +274,7 @@ def setup_render_settings(resolution_x, resolution_y):
     scene.render.image_settings.compression = 15
 
 
-def setup_camera_orthographic(distance=5.0):
+def setup_camera_orthographic(distance: float = 5.0) -> Any:
     """Set up an orthographic camera pointed at the origin."""
     import bpy
 
@@ -281,7 +292,7 @@ def setup_camera_orthographic(distance=5.0):
     return cam_obj
 
 
-def setup_flat_lighting():
+def setup_flat_lighting() -> None:
     """Configure flat lighting to match N64 aesthetic (no dynamic shadows)."""
     import bpy
 
@@ -305,7 +316,9 @@ def setup_flat_lighting():
         bpy.context.scene.eevee.use_shadows = False
 
 
-def render_kart_frames(camera, character, rotations, resolution, output_dir):
+def render_kart_frames(
+    camera: Any, character: str, rotations: int, resolution: int, output_dir: str
+) -> None:
     """Render kart frames at equidistant rotation angles around the character."""
     import bpy
 
@@ -337,7 +350,7 @@ def render_kart_frames(camera, character, rotations, resolution, output_dir):
         print(f"  Rendered kart frame {frame_num}/{rotations}")
 
 
-def render_portrait(character, output_dir):
+def render_portrait(character: str, output_dir: str) -> None:
     """Render portrait icon at 32x32."""
     import bpy
 
@@ -353,7 +366,7 @@ def render_portrait(character, output_dir):
     print("  Rendered portrait (32x32)")
 
 
-def render_faces(character, output_dir):
+def render_faces(character: str, output_dir: str) -> None:
     """Render 17 player selection face frames at 64x64."""
     import bpy
 
@@ -371,7 +384,7 @@ def render_faces(character, output_dir):
     print("  Rendered 17 face frames (64x64)")
 
 
-def render_nameplate(character, output_dir):
+def render_nameplate(character: str, output_dir: str) -> None:
     """Render nameplate at 64x12."""
     import bpy
 
@@ -388,7 +401,7 @@ def render_nameplate(character, output_dir):
     print(f"  Rendered nameplate (64x12): gTexture{capitalized}.png")
 
 
-def mathutils_direction_to_origin(location):
+def mathutils_direction_to_origin(location: Any) -> Any:
     """Calculate rotation euler to point from location toward origin."""
     import mathutils
 
@@ -397,7 +410,7 @@ def mathutils_direction_to_origin(location):
     return quat.to_euler()
 
 
-def main():
+def main() -> None:
     args = parse_args()
 
     quiet = args.quiet or args.json_output
