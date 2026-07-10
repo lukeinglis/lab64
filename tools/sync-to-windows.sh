@@ -4,7 +4,7 @@ set -euo pipefail
 # Transfer .o2r mod files to a Windows machine running SpaghettiKart.
 #
 # Usage:
-#   tools/sync-to-windows.sh [mod-file.o2r ...]
+#   tools/sync-to-windows.sh [options] [mod-file.o2r ...]
 #
 # Transfer methods (checked in order):
 #   1. LAB64_WINDOWS_MODS_PATH env var (rsync over SSH or local path)
@@ -22,16 +22,32 @@ set -euo pipefail
 #   # Print manual instructions
 #   tools/sync-to-windows.sh mods/animal-pack/dalmatian.o2r
 
+LAB64_TOOLS_VERSION="lab64 tools v0.1.0"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Source shared logging library
+. "$SCRIPT_DIR/lib/logging.sh"
+
+QUIET=0
+VERBOSE=0
+DRY_RUN=0
+FORCE=0
+
 usage() {
-    echo "Usage: $0 [--target <path>] [mod-file.o2r ...]"
+    echo "Usage: $0 [options] [mod-file.o2r ...]"
     echo ""
     echo "Transfer .o2r mod files to a Windows machine running SpaghettiKart."
     echo ""
     echo "Options:"
+    echo "  --help        Show this help message"
+    echo "  --version     Print version and exit"
+    echo "  --quiet       Suppress progress messages (errors still shown)"
+    echo "  --verbose     Show detailed execution trace"
     echo "  --target <path>  Destination path (local mount or user@host:/path)"
+    echo "  --dry-run     Show what would be copied without transferring"
+    echo "  --force       Skip confirmation prompts"
     echo ""
     echo "Environment:"
     echo "  LAB64_WINDOWS_MODS_PATH  Default target path if --target not specified"
@@ -62,6 +78,30 @@ while [ $# -gt 0 ]; do
         --help|-h)
             usage
             ;;
+        --version)
+            echo "$LAB64_TOOLS_VERSION"
+            exit 0
+            ;;
+        --quiet)
+            QUIET=1
+            shift
+            ;;
+        --verbose)
+            VERBOSE=1
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        --force)
+            FORCE=1
+            shift
+            ;;
+        -*)
+            echo "ERROR: Unknown option: $1" >&2
+            exit 1
+            ;;
         *)
             MOD_FILES+=("$1")
             shift
@@ -69,26 +109,39 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+# Initialize logging after flag parsing
+logging_init
+
+log_debug "Target: ${TARGET:-<not set>}"
+log_debug "Dry run: $DRY_RUN"
+log_debug "Force: $FORCE"
+
 # Default to all .o2r files in mods/ if none specified
 if [ ${#MOD_FILES[@]} -eq 0 ]; then
+    log_debug "No mod files specified, scanning mods/ directory..."
     while IFS= read -r -d '' f; do
         MOD_FILES+=("$f")
     done < <(find "$PROJECT_ROOT/mods" -name "*.o2r" -print0 2>/dev/null)
 fi
 
 if [ ${#MOD_FILES[@]} -eq 0 ]; then
+    log_info "No .o2r files found to sync"
     echo "No .o2r files found to sync."
     echo "Build mods first with: tools/pack-character-mod.sh"
     exit 0
 fi
 
+log_info_ctx "Files to sync" "{\"count\":${#MOD_FILES[@]}}"
 echo "Mod files to sync:"
 for f in "${MOD_FILES[@]}"; do
-    echo "  $(basename "$f") ($(du -h "$f" | awk '{print $1}'))"
+    local_size=$(du -h "$f" | awk '{print $1}')
+    log_info_ctx "Sync file" "{\"file\":\"$(basename "$f")\",\"size\":\"$local_size\"}"
+    echo "  $(basename "$f") ($local_size)"
 done
 
 # If no target configured, print manual instructions
 if [ -z "$TARGET" ]; then
+    log_info "No target configured, printing manual instructions"
     echo ""
     echo "No target configured. To transfer mods to Windows:"
     echo ""
@@ -109,34 +162,57 @@ if [ -z "$TARGET" ]; then
     exit 0
 fi
 
+log_info_ctx "Target configured" "{\"target\":\"$TARGET\"}"
 echo ""
 echo "Target: $TARGET"
+
+# Dry-run: show what would happen and exit
+if [ "$DRY_RUN" -eq 1 ]; then
+    log_info "Dry run mode — no files will be transferred"
+    echo ""
+    echo "DRY RUN: Would transfer the following files to $TARGET:"
+    for f in "${MOD_FILES[@]}"; do
+        echo "  $(basename "$f") ($(du -h "$f" | awk '{print $1}'))"
+    done
+    if [[ "$TARGET" == *:* ]]; then
+        echo "  Transfer method: rsync over SSH"
+    else
+        echo "  Transfer method: local copy"
+    fi
+    exit 0
+fi
 
 # Determine transfer method
 if [[ "$TARGET" == *:* ]]; then
     # SSH/rsync path (contains colon, e.g. user@host:/path)
+    log_info "Transfer method: rsync over SSH"
     echo "Transfer method: rsync over SSH"
     echo ""
 
     for f in "${MOD_FILES[@]}"; do
+        log_debug "Syncing $(basename "$f") via rsync..."
         echo "Syncing $(basename "$f")..."
         rsync -avz --progress "$f" "$TARGET/"
     done
 else
     # Local path (mounted drive, shared folder)
+    log_info "Transfer method: local copy"
     echo "Transfer method: local copy"
 
     if [ ! -d "$TARGET" ]; then
+        log_error "Target directory does not exist: $TARGET"
         echo "ERROR: Target directory does not exist: $TARGET"
         echo "Make sure the drive is mounted or the path is correct."
         exit 1
     fi
 
     for f in "${MOD_FILES[@]}"; do
+        log_info_ctx "Copying file" "{\"file\":\"$(basename "$f")\",\"target\":\"$TARGET\"}"
         echo "Copying $(basename "$f")..."
         cp -v "$f" "$TARGET/"
     done
 fi
 
+log_info "Sync complete"
 echo ""
 echo "Done. Launch SpaghettiKart to load the mods."

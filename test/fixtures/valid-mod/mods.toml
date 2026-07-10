@@ -1,0 +1,7 @@
+[mod]
+name = "Test Mod"
+version = "0.1.0"
+description = "A test mod for validation."
+
+[mod.authors]
+names = ["Test"]
