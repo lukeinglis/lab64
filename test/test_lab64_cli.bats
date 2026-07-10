@@ -67,26 +67,25 @@ LAB64="$BATS_TEST_DIRNAME/../tools/lab64"
 
 @test "lab64: render dispatches to render-character-sprites.py" {
     run "$LAB64" render --help
-    # The render script should produce some output (usage or help)
-    [ -n "$output" ]
+    assert_output --partial "character"
 }
 
 @test "lab64: pack dispatches to pack-character-mod.sh" {
     run "$LAB64" pack --help
-    [ -n "$output" ]
+    assert_output --partial "sprite"
 }
 
 @test "lab64: validate dispatches to validate-mod.sh" {
     run "$LAB64" validate --help
-    [ -n "$output" ]
+    assert_output --partial "Validate"
 }
 
 @test "lab64: sync dispatches to sync-to-windows.sh" {
     run "$LAB64" sync --help
-    [ -n "$output" ]
+    assert_output --partial "Transfer"
 }
 
 @test "lab64: check dispatches to check-feasibility.sh" {
     run "$LAB64" check --help
-    [ -n "$output" ]
+    assert_output --partial "feasibility"
 }

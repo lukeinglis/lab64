@@ -1,4 +1,4 @@
-.PHONY: test test-bash test-python lint check validate doctor help pre-commit-install
+.PHONY: test test-bash test-python lint check validate doctor pack help pre-commit-install
 
 BATS := test/libs/bats-core/bin/bats
 SHELL_SCRIPTS := $(wildcard tools/*.sh)
@@ -22,6 +22,19 @@ check: ## Run ShellCheck on all bash scripts
 
 validate: ## Validate mod archives (placeholder)
 	tools/validate-mod.sh --help
+
+pack: ## Pack all character mods (or show help)
+	@chars=$$(find assets/characters -mindepth 1 -maxdepth 1 -type d 2>/dev/null); \
+	if [ -z "$$chars" ]; then \
+		echo "No characters found in assets/characters/. Run 'tools/lab64 pack --help' for usage."; \
+		tools/lab64 pack --help; \
+	else \
+		for dir in $$chars; do \
+			name=$$(basename "$$dir"); \
+			echo "Packing $$name..."; \
+			tools/lab64 pack "$$name" "$$dir/sprites"; \
+		done; \
+	fi
 
 doctor: ## Check all dependencies
 	tools/lab64 doctor

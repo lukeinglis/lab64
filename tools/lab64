@@ -101,23 +101,23 @@ cmd_doctor() {
 }
 
 cmd_render() {
-    exec "$SCRIPT_DIR/render-character-sprites.py" "${PASSTHROUGH_FLAGS[@]}" "$@"
+    exec "$SCRIPT_DIR/render-character-sprites.py" ${PASSTHROUGH_FLAGS[@]+"${PASSTHROUGH_FLAGS[@]}"} "$@"
 }
 
 cmd_pack() {
-    exec "$SCRIPT_DIR/pack-character-mod.sh" "${PASSTHROUGH_FLAGS[@]}" "$@"
+    exec "$SCRIPT_DIR/pack-character-mod.sh" ${PASSTHROUGH_FLAGS[@]+"${PASSTHROUGH_FLAGS[@]}"} "$@"
 }
 
 cmd_validate() {
-    exec "$SCRIPT_DIR/validate-mod.sh" "${PASSTHROUGH_FLAGS[@]}" "$@"
+    exec "$SCRIPT_DIR/validate-mod.sh" ${PASSTHROUGH_FLAGS[@]+"${PASSTHROUGH_FLAGS[@]}"} "$@"
 }
 
 cmd_sync() {
-    exec "$SCRIPT_DIR/sync-to-windows.sh" "${PASSTHROUGH_FLAGS[@]}" "$@"
+    exec "$SCRIPT_DIR/sync-to-windows.sh" ${PASSTHROUGH_FLAGS[@]+"${PASSTHROUGH_FLAGS[@]}"} "$@"
 }
 
 cmd_check() {
-    exec "$SCRIPT_DIR/check-feasibility.sh" "${PASSTHROUGH_FLAGS[@]}" "$@"
+    exec "$SCRIPT_DIR/check-feasibility.sh" ${PASSTHROUGH_FLAGS[@]+"${PASSTHROUGH_FLAGS[@]}"} "$@"
 }
 
 # Parse global options before the subcommand
