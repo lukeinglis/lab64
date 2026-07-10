@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Tests for eval/score.py — validates JSON structure and score invariants."""
 
+from __future__ import annotations
+
 import json
 import subprocess
 import sys

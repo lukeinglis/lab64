@@ -1,4 +1,4 @@
-.PHONY: test test-bash test-python lint check validate doctor pack help pre-commit-install
+.PHONY: test test-bash test-python lint check validate doctor pack typecheck help pre-commit-install
 
 BATS := test/libs/bats-core/bin/bats
 SHELL_SCRIPTS := $(wildcard tools/*.sh)
@@ -19,6 +19,9 @@ lint: ## Run all linters via pre-commit
 
 check: ## Run ShellCheck on all bash scripts
 	shellcheck $(SHELL_SCRIPTS)
+
+typecheck: ## Run mypy type checking
+	python3 -m mypy tools/ eval/
 
 validate: ## Validate mod archives (placeholder)
 	tools/validate-mod.sh --help

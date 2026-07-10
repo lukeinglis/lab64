@@ -11,6 +11,8 @@ Output format:
     {"results": [{"name": str, "score": float, "weight": float, "passed": bool, "details": str}, ...]}
 """
 
+from __future__ import annotations
+
 import json
 import os
 import re
@@ -18,13 +20,31 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from collections.abc import Callable
+from typing import TypedDict
+
+
+class EvalResult(TypedDict):
+    name: str
+    score: float
+    weight: float
+    passed: bool
+    details: str
+
+
+class _DocRequirements(TypedDict):
+    sections: list[str]
+    min_headings: int
+    min_chars: int
 
 
 ROOT = Path(__file__).resolve().parent.parent
 SUBPROCESS_TIMEOUT = 5
 
 
-def _run(cmd, timeout=SUBPROCESS_TIMEOUT):
+def _run(
+    cmd: list[str], timeout: int = SUBPROCESS_TIMEOUT
+) -> subprocess.CompletedProcess[str] | None:
     try:
         result = subprocess.run(
             cmd, capture_output=True, text=True, timeout=timeout, cwd=str(ROOT)
@@ -34,7 +54,9 @@ def _run(cmd, timeout=SUBPROCESS_TIMEOUT):
         return None
 
 
-def _score_from_checks(checks):
+def _score_from_checks(
+    checks: dict[str, bool],
+) -> tuple[float, list[str], list[str]]:
     total = len(checks)
     if total == 0:
         return 0.0, [], []
@@ -43,7 +65,12 @@ def _score_from_checks(checks):
     return len(passed) / total, passed, failed
 
 
-def _build_result(name, checks, weight, pass_threshold=0.6):
+def _build_result(
+    name: str,
+    checks: dict[str, bool],
+    weight: float,
+    pass_threshold: float = 0.6,
+) -> EvalResult:
     score, passed, failed = _score_from_checks(checks)
     details_parts = [f"{len(passed)}/{len(checks)} quality checks passed"]
     if failed:
@@ -57,7 +84,7 @@ def _build_result(name, checks, weight, pass_threshold=0.6):
     }
 
 
-def eval_tooling_completeness() -> dict:
+def eval_tooling_completeness() -> EvalResult:
     bash_scripts = [
         "tools/check-feasibility.sh",
         "tools/pack-character-mod.sh",
@@ -117,8 +144,8 @@ def eval_tooling_completeness() -> dict:
     return _build_result("tooling_completeness", checks, 0.25, pass_threshold=0.6)
 
 
-def eval_documentation_coverage() -> dict:
-    docs_checks = {
+def eval_documentation_coverage() -> EvalResult:
+    docs_checks: dict[str, _DocRequirements] = {
         "docs/setup.md": {
             "sections": ["Prerequisites"],
             "min_headings": 3,
@@ -187,7 +214,7 @@ def eval_documentation_coverage() -> dict:
     return _build_result("documentation_coverage", checks, 0.25, pass_threshold=0.7)
 
 
-def eval_asset_pipeline_readiness() -> dict:
+def eval_asset_pipeline_readiness() -> EvalResult:
     render_script = ROOT / "tools" / "render-character-sprites.py"
     checks = {}
 
@@ -229,7 +256,7 @@ def eval_asset_pipeline_readiness() -> dict:
     return _build_result("asset_pipeline_readiness", checks, 0.25, pass_threshold=0.6)
 
 
-def eval_mod_packaging() -> dict:
+def eval_mod_packaging() -> EvalResult:
     pack_script = ROOT / "tools" / "pack-character-mod.sh"
     validate_script = ROOT / "tools" / "validate-mod.sh"
     mods_toml = ROOT / "mods" / "animal-pack" / "mods.toml"
@@ -268,7 +295,7 @@ def eval_mod_packaging() -> dict:
     return _build_result("mod_packaging", checks, 0.25, pass_threshold=0.6)
 
 
-EVALS = [
+EVALS: list[Callable[[], EvalResult]] = [
     eval_tooling_completeness,
     eval_documentation_coverage,
     eval_asset_pipeline_readiness,
