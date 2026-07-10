@@ -20,11 +20,98 @@ Renders:
 import argparse
 import datetime
 import json
+import logging
 import math
 import os
 import sys
 
 LAB64_TOOLS_VERSION = "lab64 tools v0.1.0"
+
+
+class JSONFormatter(logging.Formatter):
+    """Emit log records as single-line JSON objects to stderr."""
+
+    def __init__(self, script_name, run_id):
+        super().__init__()
+        self.script_name = script_name
+        self.run_id = run_id
+
+    def format(self, record):
+        entry = {
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            ),
+            "level": record.levelname,
+            "script": self.script_name,
+            "message": record.getMessage(),
+            "run_id": self.run_id,
+        }
+        ctx = getattr(record, "context", None)
+        if ctx:
+            entry["context"] = ctx
+        return json.dumps(entry)
+
+
+class HumanFormatter(logging.Formatter):
+    """Emit colored human-readable log lines to stderr."""
+
+    COLORS = {
+        "DEBUG": "\033[36m",
+        "INFO": "\033[32m",
+        "WARNING": "\033[33m",
+        "ERROR": "\033[31m",
+    }
+    RESET = "\033[0m"
+
+    def format(self, record):
+        color = self.COLORS.get(record.levelname, "")
+        reset = self.RESET if color else ""
+        prefix = f"[{record.levelname}]"
+        if sys.stderr.isatty():
+            return f"{color}{prefix}{reset} {record.getMessage()}"
+        return f"{prefix} {record.getMessage()}"
+
+
+def _generate_run_id():
+    ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    return f"{ts}-{os.getpid()}"
+
+
+def setup_logging(json_output=False, quiet=False, verbose=False):
+    """Configure the root logger based on CLI flags and LOG_FORMAT env var."""
+    log_format = os.environ.get("LOG_FORMAT", "human")
+    run_id = os.environ.get("RUN_ID", _generate_run_id())
+
+    if json_output or log_format == "json":
+        formatter = JSONFormatter("render-character-sprites", run_id)
+    else:
+        formatter = HumanFormatter()
+
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger()
+    logger.handlers.clear()
+    logger.addHandler(handler)
+
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+    elif quiet:
+        logger.setLevel(logging.WARNING)
+    else:
+        logger.setLevel(logging.INFO)
+
+    return logger
+
+
+def log_ctx(logger, level, message, context=None):
+    """Log a message with optional structured context."""
+    record = logger.makeRecord(
+        logger.name, level, "(unknown)", 0, message, (), None
+    )
+    if context:
+        record.context = context
+    logger.handle(record)
 
 
 def parse_args():
@@ -147,22 +234,14 @@ def _list_characters(json_output):
                 print(f"  {c['name']} ({blends})")
 
 
-def _log(msg, quiet=False):
-    if not quiet:
-        print(msg)
-
-
-def _verbose(msg, verbose=False):
-    if verbose:
-        print(f"[VERBOSE] {msg}")
-
-
 def _json_result(status, message, details):
     result = {
         "status": status,
         "message": message,
         "details": details,
-        "timestamp": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        ),
     }
     print(json.dumps(result))
 
@@ -228,6 +307,8 @@ def render_kart_frames(camera, character, rotations, resolution, output_dir):
     """Render kart frames at equidistant rotation angles around the character."""
     import bpy
 
+    logger = logging.getLogger()
+
     setup_render_settings(resolution, resolution)
     kart_dir = os.path.join(output_dir, f"{character}_kart")
     os.makedirs(kart_dir, exist_ok=True)
@@ -248,6 +329,9 @@ def render_kart_frames(camera, character, rotations, resolution, output_dir):
         filepath = os.path.join(kart_dir, f"{character}_kart_frame{frame_num}.png")
         bpy.context.scene.render.filepath = filepath
         bpy.ops.render.render(write_still=True)
+        log_ctx(logger, logging.DEBUG, f"Rendered kart frame {frame_num}/{rotations}", {
+            "frame": frame_num, "total": rotations, "path": filepath
+        })
         print(f"  Rendered kart frame {frame_num}/{rotations}")
 
 
@@ -255,10 +339,15 @@ def render_portrait(character, output_dir):
     """Render portrait icon at 32x32."""
     import bpy
 
+    logger = logging.getLogger()
+
     setup_render_settings(32, 32)
     filepath = os.path.join(output_dir, f"common_texture_portrait_{character}.png")
     bpy.context.scene.render.filepath = filepath
     bpy.ops.render.render(write_still=True)
+    log_ctx(logger, logging.INFO, "Rendered portrait", {
+        "resolution": "32x32", "path": filepath
+    })
     print("  Rendered portrait (32x32)")
 
 
@@ -266,12 +355,17 @@ def render_faces(character, output_dir):
     """Render 17 player selection face frames at 64x64."""
     import bpy
 
+    logger = logging.getLogger()
+
     setup_render_settings(64, 64)
     for i in range(17):
         frame_num = str(i).zfill(2)
         filepath = os.path.join(output_dir, f"{character}_face_{frame_num}.png")
         bpy.context.scene.render.filepath = filepath
         bpy.ops.render.render(write_still=True)
+    log_ctx(logger, logging.INFO, "Rendered face frames", {
+        "count": 17, "resolution": "64x64"
+    })
     print("  Rendered 17 face frames (64x64)")
 
 
@@ -279,11 +373,16 @@ def render_nameplate(character, output_dir):
     """Render nameplate at 64x12."""
     import bpy
 
+    logger = logging.getLogger()
+
     setup_render_settings(64, 12)
     capitalized = "".join(word.capitalize() for word in character.split("_"))
     filepath = os.path.join(output_dir, f"gTexture{capitalized}.png")
     bpy.context.scene.render.filepath = filepath
     bpy.ops.render.render(write_still=True)
+    log_ctx(logger, logging.INFO, "Rendered nameplate", {
+        "resolution": "64x12", "path": filepath
+    })
     print(f"  Rendered nameplate (64x12): gTexture{capitalized}.png")
 
 
@@ -302,17 +401,25 @@ def main():
     quiet = args.quiet or args.json_output
     verbose = args.verbose
 
+    logger = setup_logging(
+        json_output=args.json_output,
+        quiet=quiet,
+        verbose=verbose,
+    )
+
     output_dir = args.output_dir
     if output_dir is None:
         output_dir = os.path.join("assets", "characters", args.character, "sprites")
 
     capitalized = "".join(word.capitalize() for word in args.character.split("_"))
 
-    _verbose(f"Character: {args.character}", verbose)
-    _verbose(f"Blend file: {args.blend_file}", verbose)
-    _verbose(f"Rotations: {args.rotations}", verbose)
-    _verbose(f"Resolution: {args.resolution}", verbose)
-    _verbose(f"Output dir: {output_dir}", verbose)
+    log_ctx(logger, logging.DEBUG, "Render configuration", {
+        "character": args.character,
+        "blend_file": args.blend_file,
+        "rotations": args.rotations,
+        "resolution": args.resolution,
+        "output_dir": output_dir,
+    })
 
     if args.dry_run:
         kart_dir = os.path.join(output_dir, f"{args.character}_kart")
@@ -338,6 +445,10 @@ def main():
             },
         }
 
+        log_ctx(logger, logging.INFO, "Dry run complete", {
+            "character": args.character, "output_dir": output_dir
+        })
+
         if args.json_output:
             _json_result(
                 "success",
@@ -351,49 +462,69 @@ def main():
                 },
             )
         else:
-            _log(f"DRY RUN: Would render sprites for: {args.character}", quiet)
-            _log(f"  Blend file: {args.blend_file}", quiet)
-            _log(f"  Output: {output_dir}", quiet)
-            _log(f"  Kart frames: {args.rotations} frames at {args.resolution}x{args.resolution}", quiet)
-            _log(f"  Portrait: 32x32", quiet)
-            _log(f"  Faces: 17 frames at 64x64", quiet)
-            _log(f"  Nameplate: 64x12 (gTexture{capitalized}.png)", quiet)
+            if not quiet:
+                print(f"DRY RUN: Would render sprites for: {args.character}")
+                print(f"  Blend file: {args.blend_file}")
+                print(f"  Output: {output_dir}")
+                print(f"  Kart frames: {args.rotations} frames at {args.resolution}x{args.resolution}")
+                print(f"  Portrait: 32x32")
+                print(f"  Faces: 17 frames at 64x64")
+                print(f"  Nameplate: 64x12 (gTexture{capitalized}.png)")
         sys.exit(0)
 
-    _log(f"Rendering sprites for: {args.character}", quiet)
-    _log(f"  Blend file: {args.blend_file}", quiet)
-    _log(f"  Rotations: {args.rotations}", quiet)
-    _log(f"  Resolution: {args.resolution}x{args.resolution}", quiet)
-    _log(f"  Output: {output_dir}", quiet)
+    if not quiet:
+        print(f"Rendering sprites for: {args.character}")
+        print(f"  Blend file: {args.blend_file}")
+        print(f"  Rotations: {args.rotations}")
+        print(f"  Resolution: {args.resolution}x{args.resolution}")
+        print(f"  Output: {output_dir}")
 
     try:
         import bpy
     except ImportError:
+        logger.error("This script must be run inside Blender.")
         print("ERROR: This script must be run inside Blender.")
         print("Usage: blender --background --python tools/render-character-sprites.py -- [args]")
         sys.exit(1)
 
     os.makedirs(output_dir, exist_ok=True)
 
+    log_ctx(logger, logging.INFO, "Opening blend file", {
+        "blend_file": args.blend_file
+    })
     bpy.ops.wm.open_mainfile(filepath=args.blend_file)
 
+    log_ctx(logger, logging.INFO, "Setting up camera and lighting", {
+        "character": args.character
+    })
     camera = setup_camera_orthographic()
     setup_flat_lighting()
 
-    _verbose("Setting up camera and lighting...", verbose)
-
-    _log("\nRendering kart frames...", quiet)
-    _verbose(f"Rendering {args.rotations} kart frames at {args.resolution}x{args.resolution}", verbose)
+    if not quiet:
+        print("\nRendering kart frames...")
+    log_ctx(logger, logging.INFO, "Rendering kart frames", {
+        "count": args.rotations, "resolution": f"{args.resolution}x{args.resolution}"
+    })
     render_kart_frames(camera, args.character, args.rotations, args.resolution, output_dir)
 
-    _log("\nRendering portrait...", quiet)
+    if not quiet:
+        print("\nRendering portrait...")
     render_portrait(args.character, output_dir)
 
-    _log("\nRendering selection faces...", quiet)
+    if not quiet:
+        print("\nRendering selection faces...")
     render_faces(args.character, output_dir)
 
-    _log("\nRendering nameplate...", quiet)
+    if not quiet:
+        print("\nRendering nameplate...")
     render_nameplate(args.character, output_dir)
+
+    log_ctx(logger, logging.INFO, "Render complete", {
+        "character": args.character,
+        "output_dir": output_dir,
+        "kart_frames": args.rotations,
+        "face_frames": 17,
+    })
 
     if args.json_output:
         _json_result(
@@ -407,7 +538,8 @@ def main():
             },
         )
     else:
-        _log(f"\nDone. Sprites written to: {output_dir}", quiet)
+        if not quiet:
+            print(f"\nDone. Sprites written to: {output_dir}")
 
 
 if __name__ == "__main__":

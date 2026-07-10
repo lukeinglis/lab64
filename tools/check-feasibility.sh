@@ -15,6 +15,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 RESULTS_FILE="$PROJECT_ROOT/docs/feasibility-results.md"
 
+# Source shared logging library
+. "$SCRIPT_DIR/lib/logging.sh"
+
 QUIET=0
 VERBOSE=0
 JSON_OUTPUT=0
@@ -41,18 +44,6 @@ usage() {
     echo ""
     echo "Results are saved to: docs/feasibility-results.md"
     exit 1
-}
-
-log() {
-    if [ "$QUIET" -eq 0 ]; then
-        echo "$@"
-    fi
-}
-
-verbose_log() {
-    if [ "$VERBOSE" -eq 1 ]; then
-        echo "[VERBOSE] $@"
-    fi
 }
 
 json_result() {
@@ -103,46 +94,53 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-log "============================================"
-log "  Lab 64 Feasibility Test - Gate 1"
-log "============================================"
-log ""
-log "This checklist validates that SpaghettiKart can support"
-log "the Lab 64 private team setup."
-log ""
+# Initialize logging after flag parsing
+logging_init
+
+log_info "Starting feasibility check"
+
+echo "============================================"
+echo "  Lab 64 Feasibility Test - Gate 1"
+echo "============================================"
+echo ""
+echo "This checklist validates that SpaghettiKart can support"
+echo "the Lab 64 private team setup."
+echo ""
 
 if [ "$NON_INTERACTIVE" -eq 1 ]; then
-    log "Running in non-interactive mode (all items auto-skipped)."
-    log ""
+    log_info "Running in non-interactive mode"
+    echo "Running in non-interactive mode (all items auto-skipped)."
+    echo ""
 else
-    log "For each item, enter:"
-    log "  p = PASS"
-    log "  f = FAIL"
-    log "  s = SKIP (not testable right now)"
-    log ""
+    echo "For each item, enter:"
+    echo "  p = PASS"
+    echo "  f = FAIL"
+    echo "  s = SKIP (not testable right now)"
+    echo ""
 fi
 
-log "Results will be saved to: docs/feasibility-results.md"
-log ""
-log "--------------------------------------------"
-log ""
+echo "Results will be saved to: docs/feasibility-results.md"
+echo ""
+echo "--------------------------------------------"
+echo ""
 
 check_item() {
     local item_num="$1"
     local description="$2"
     local troubleshoot="$3"
 
-    verbose_log "Checking item $item_num: $description"
+    log_debug "Checking item $item_num: $description"
 
-    log "[$item_num] $description"
-    log ""
+    echo "[$item_num] $description"
+    echo ""
 
     if [ "$NON_INTERACTIVE" -eq 1 ]; then
         RESULTS+=("| $item_num | $description | SKIP | $(date '+%Y-%m-%d %H:%M') |")
         JSON_ITEMS+=("{\"item\":$item_num,\"description\":\"$description\",\"result\":\"SKIP\"}")
         SKIP_COUNT=$((SKIP_COUNT + 1))
-        log "  -> SKIP (non-interactive)"
-        log ""
+        log_info_ctx "Item skipped (non-interactive)" "{\"item\":$item_num}"
+        echo "  -> SKIP (non-interactive)"
+        echo ""
         return 0
     fi
 
@@ -154,26 +152,29 @@ check_item() {
                 RESULTS+=("| $item_num | $description | PASS | $(date '+%Y-%m-%d %H:%M') |")
                 JSON_ITEMS+=("{\"item\":$item_num,\"description\":\"$description\",\"result\":\"PASS\"}")
                 PASS_COUNT=$((PASS_COUNT + 1))
-                log "  -> PASS"
-                log ""
+                log_info_ctx "Item passed" "{\"item\":$item_num}"
+                echo "  -> PASS"
+                echo ""
                 return 0
                 ;;
             f|F)
                 RESULTS+=("| $item_num | $description | FAIL | $(date '+%Y-%m-%d %H:%M') |")
                 JSON_ITEMS+=("{\"item\":$item_num,\"description\":\"$description\",\"result\":\"FAIL\"}")
                 FAIL_COUNT=$((FAIL_COUNT + 1))
-                log "  -> FAIL"
-                log ""
-                log "  Troubleshooting: $troubleshoot"
-                log ""
+                log_warn_ctx "Item failed" "{\"item\":$item_num}"
+                echo "  -> FAIL"
+                echo ""
+                echo "  Troubleshooting: $troubleshoot"
+                echo ""
                 return 1
                 ;;
             s|S)
                 RESULTS+=("| $item_num | $description | SKIP | $(date '+%Y-%m-%d %H:%M') |")
                 JSON_ITEMS+=("{\"item\":$item_num,\"description\":\"$description\",\"result\":\"SKIP\"}")
                 SKIP_COUNT=$((SKIP_COUNT + 1))
-                log "  -> SKIP"
-                log ""
+                log_info_ctx "Item skipped" "{\"item\":$item_num}"
+                echo "  -> SKIP"
+                echo ""
                 return 0
                 ;;
             *)
@@ -247,6 +248,8 @@ elif [ "$SKIP_COUNT" -gt 0 ]; then
     VERDICT="INCOMPLETE"
 fi
 
+log_info_ctx "Feasibility check complete" "{\"verdict\":\"$VERDICT\",\"pass\":$PASS_COUNT,\"fail\":$FAIL_COUNT,\"skip\":$SKIP_COUNT,\"total\":$TOTAL}"
+
 # Generate JSON output if requested
 if [ "$JSON_OUTPUT" -eq 1 ]; then
     items_json=$(printf '%s,' "${JSON_ITEMS[@]}")
@@ -257,26 +260,26 @@ if [ "$JSON_OUTPUT" -eq 1 ]; then
 fi
 
 # Generate results summary
-log ""
-log "============================================"
-log "  Results Summary"
-log "============================================"
-log ""
-log "  PASS: $PASS_COUNT"
-log "  FAIL: $FAIL_COUNT"
-log "  SKIP: $SKIP_COUNT"
-log "  Total: $TOTAL"
-log ""
+echo ""
+echo "============================================"
+echo "  Results Summary"
+echo "============================================"
+echo ""
+echo "  PASS: $PASS_COUNT"
+echo "  FAIL: $FAIL_COUNT"
+echo "  SKIP: $SKIP_COUNT"
+echo "  Total: $TOTAL"
+echo ""
 
 if [ "$FAIL_COUNT" -gt 0 ]; then
-    log "  VERDICT: BLOCKED - Fix failed items before proceeding to Gate 2"
+    echo "  VERDICT: BLOCKED - Fix failed items before proceeding to Gate 2"
 elif [ "$SKIP_COUNT" -gt 0 ]; then
-    log "  VERDICT: INCOMPLETE - Return to test skipped items"
+    echo "  VERDICT: INCOMPLETE - Return to test skipped items"
 else
-    log "  VERDICT: PASS - Proceed to Gate 2 (Animal Pack MVP)"
+    echo "  VERDICT: PASS - Proceed to Gate 2 (Animal Pack MVP)"
 fi
 
-verbose_log "Writing results to $RESULTS_FILE..."
+log_debug "Writing results to $RESULTS_FILE"
 
 # Write results to file
 cat > "$RESULTS_FILE" << HEADER
@@ -315,5 +318,5 @@ $([ "$FAIL_COUNT" -gt 0 ] && echo "Fix the failed items above. Consult the troub
 *Generated by tools/check-feasibility.sh*
 FOOTER
 
-log ""
-log "Results saved to: $RESULTS_FILE"
+echo ""
+echo "Results saved to: $RESULTS_FILE"

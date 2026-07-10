@@ -42,8 +42,9 @@ SCRIPT="$BATS_TEST_DIRNAME/../tools/pack-character-mod.sh"
     # We need to run it from a temp project root so it doesn't pollute the real tree
     local fake_root
     fake_root=$(mktemp -d)
-    mkdir -p "$fake_root/tools" "$fake_root/mods/animal-pack"
+    mkdir -p "$fake_root/tools/lib" "$fake_root/mods/animal-pack"
     cp "$SCRIPT" "$fake_root/tools/"
+    cp "$BATS_TEST_DIRNAME/../tools/lib/logging.sh" "$fake_root/tools/lib/"
 
     run "$fake_root/tools/pack-character-mod.sh" testchar "$fixtures"
     assert_success
@@ -57,8 +58,9 @@ SCRIPT="$BATS_TEST_DIRNAME/../tools/pack-character-mod.sh"
     local fixtures="$BATS_TEST_DIRNAME/fixtures/sprites"
     local fake_root
     fake_root=$(mktemp -d)
-    mkdir -p "$fake_root/tools" "$fake_root/mods/animal-pack"
+    mkdir -p "$fake_root/tools/lib" "$fake_root/mods/animal-pack"
     cp "$SCRIPT" "$fake_root/tools/"
+    cp "$BATS_TEST_DIRNAME/../tools/lib/logging.sh" "$fake_root/tools/lib/"
 
     run "$fake_root/tools/pack-character-mod.sh" testchar "$fixtures"
     assert_success

@@ -15,8 +15,9 @@ SCRIPT="$BATS_TEST_DIRNAME/../tools/check-feasibility.sh"
     input=$(printf 's\n%.0s' $(seq 1 11))
     local fake_root
     fake_root=$(mktemp -d)
-    mkdir -p "$fake_root/docs" "$fake_root/tools"
+    mkdir -p "$fake_root/docs" "$fake_root/tools/lib"
     cp "$SCRIPT" "$fake_root/tools/"
+    cp "$BATS_TEST_DIRNAME/../tools/lib/logging.sh" "$fake_root/tools/lib/"
 
     run bash -c "echo '$input' | '$fake_root/tools/check-feasibility.sh'"
     assert_success
@@ -30,8 +31,9 @@ SCRIPT="$BATS_TEST_DIRNAME/../tools/check-feasibility.sh"
     input=$(printf 's\n%.0s' $(seq 1 11))
     local fake_root
     fake_root=$(mktemp -d)
-    mkdir -p "$fake_root/docs" "$fake_root/tools"
+    mkdir -p "$fake_root/docs" "$fake_root/tools/lib"
     cp "$SCRIPT" "$fake_root/tools/"
+    cp "$BATS_TEST_DIRNAME/../tools/lib/logging.sh" "$fake_root/tools/lib/"
 
     run bash -c "echo '$input' | '$fake_root/tools/check-feasibility.sh'"
     assert_success
@@ -46,8 +48,9 @@ SCRIPT="$BATS_TEST_DIRNAME/../tools/check-feasibility.sh"
     input=$(printf 'p\n%.0s' $(seq 1 11))
     local fake_root
     fake_root=$(mktemp -d)
-    mkdir -p "$fake_root/docs" "$fake_root/tools"
+    mkdir -p "$fake_root/docs" "$fake_root/tools/lib"
     cp "$SCRIPT" "$fake_root/tools/"
+    cp "$BATS_TEST_DIRNAME/../tools/lib/logging.sh" "$fake_root/tools/lib/"
 
     run bash -c "echo '$input' | '$fake_root/tools/check-feasibility.sh'"
     assert_success

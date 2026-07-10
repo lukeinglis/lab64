@@ -27,6 +27,9 @@ LAB64_TOOLS_VERSION="lab64 tools v0.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Source shared logging library
+. "$SCRIPT_DIR/lib/logging.sh"
+
 QUIET=0
 VERBOSE=0
 DRY_RUN=0
@@ -56,18 +59,6 @@ usage() {
     echo "  $0 --target /Volumes/USB/SpaghettiKart/mods mods/animal-pack/*.o2r"
     echo "  LAB64_WINDOWS_MODS_PATH=user@pc:/c/Games/SK/mods $0"
     exit 1
-}
-
-log() {
-    if [ "$QUIET" -eq 0 ]; then
-        echo "$@"
-    fi
-}
-
-verbose_log() {
-    if [ "$VERBOSE" -eq 1 ]; then
-        echo "[VERBOSE] $@"
-    fi
 }
 
 TARGET="${LAB64_WINDOWS_MODS_PATH:-}"
@@ -118,65 +109,75 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-verbose_log "Target: ${TARGET:-<not set>}"
-verbose_log "Dry run: $DRY_RUN"
-verbose_log "Force: $FORCE"
+# Initialize logging after flag parsing
+logging_init
+
+log_debug "Target: ${TARGET:-<not set>}"
+log_debug "Dry run: $DRY_RUN"
+log_debug "Force: $FORCE"
 
 # Default to all .o2r files in mods/ if none specified
 if [ ${#MOD_FILES[@]} -eq 0 ]; then
-    verbose_log "No mod files specified, scanning mods/ directory..."
+    log_debug "No mod files specified, scanning mods/ directory..."
     while IFS= read -r -d '' f; do
         MOD_FILES+=("$f")
     done < <(find "$PROJECT_ROOT/mods" -name "*.o2r" -print0 2>/dev/null)
 fi
 
 if [ ${#MOD_FILES[@]} -eq 0 ]; then
-    log "No .o2r files found to sync."
-    log "Build mods first with: tools/pack-character-mod.sh"
+    log_info "No .o2r files found to sync"
+    echo "No .o2r files found to sync."
+    echo "Build mods first with: tools/pack-character-mod.sh"
     exit 0
 fi
 
-log "Mod files to sync:"
+log_info_ctx "Files to sync" "{\"count\":${#MOD_FILES[@]}}"
+echo "Mod files to sync:"
 for f in "${MOD_FILES[@]}"; do
-    log "  $(basename "$f") ($(du -h "$f" | awk '{print $1}'))"
+    local_size=$(du -h "$f" | awk '{print $1}')
+    log_info_ctx "Sync file" "{\"file\":\"$(basename "$f")\",\"size\":\"$local_size\"}"
+    echo "  $(basename "$f") ($local_size)"
 done
 
 # If no target configured, print manual instructions
 if [ -z "$TARGET" ]; then
-    log ""
-    log "No target configured. To transfer mods to Windows:"
-    log ""
-    log "Option 1: Set LAB64_WINDOWS_MODS_PATH"
-    log "  export LAB64_WINDOWS_MODS_PATH=\"user@windows-pc:/c/Games/SpaghettiKart/mods\""
-    log "  $0"
-    log ""
-    log "Option 2: Use --target with a mounted drive"
-    log "  $0 --target /Volumes/USB/SpaghettiKart/mods"
-    log ""
-    log "Option 3: Copy manually"
-    log "  Copy these files to your SpaghettiKart mods/ folder on Windows:"
+    log_info "No target configured, printing manual instructions"
+    echo ""
+    echo "No target configured. To transfer mods to Windows:"
+    echo ""
+    echo "Option 1: Set LAB64_WINDOWS_MODS_PATH"
+    echo "  export LAB64_WINDOWS_MODS_PATH=\"user@windows-pc:/c/Games/SpaghettiKart/mods\""
+    echo "  $0"
+    echo ""
+    echo "Option 2: Use --target with a mounted drive"
+    echo "  $0 --target /Volumes/USB/SpaghettiKart/mods"
+    echo ""
+    echo "Option 3: Copy manually"
+    echo "  Copy these files to your SpaghettiKart mods/ folder on Windows:"
     for f in "${MOD_FILES[@]}"; do
-        log "    $(realpath "$f")"
+        echo "    $(realpath "$f")"
     done
-    log ""
-    log "  Typical Windows location: C:\\Games\\SpaghettiKart\\mods\\"
+    echo ""
+    echo "  Typical Windows location: C:\\Games\\SpaghettiKart\\mods\\"
     exit 0
 fi
 
-log ""
-log "Target: $TARGET"
+log_info_ctx "Target configured" "{\"target\":\"$TARGET\"}"
+echo ""
+echo "Target: $TARGET"
 
 # Dry-run: show what would happen and exit
 if [ "$DRY_RUN" -eq 1 ]; then
-    log ""
-    log "DRY RUN: Would transfer the following files to $TARGET:"
+    log_info "Dry run mode — no files will be transferred"
+    echo ""
+    echo "DRY RUN: Would transfer the following files to $TARGET:"
     for f in "${MOD_FILES[@]}"; do
-        log "  $(basename "$f") ($(du -h "$f" | awk '{print $1}'))"
+        echo "  $(basename "$f") ($(du -h "$f" | awk '{print $1}'))"
     done
     if [[ "$TARGET" == *:* ]]; then
-        log "  Transfer method: rsync over SSH"
+        echo "  Transfer method: rsync over SSH"
     else
-        log "  Transfer method: local copy"
+        echo "  Transfer method: local copy"
     fi
     exit 0
 fi
@@ -184,30 +185,34 @@ fi
 # Determine transfer method
 if [[ "$TARGET" == *:* ]]; then
     # SSH/rsync path (contains colon, e.g. user@host:/path)
-    log "Transfer method: rsync over SSH"
-    log ""
+    log_info "Transfer method: rsync over SSH"
+    echo "Transfer method: rsync over SSH"
+    echo ""
 
     for f in "${MOD_FILES[@]}"; do
-        verbose_log "Syncing $(basename "$f") via rsync..."
-        log "Syncing $(basename "$f")..."
+        log_debug "Syncing $(basename "$f") via rsync..."
+        echo "Syncing $(basename "$f")..."
         rsync -avz --progress "$f" "$TARGET/"
     done
 else
     # Local path (mounted drive, shared folder)
-    log "Transfer method: local copy"
+    log_info "Transfer method: local copy"
+    echo "Transfer method: local copy"
 
     if [ ! -d "$TARGET" ]; then
+        log_error "Target directory does not exist: $TARGET"
         echo "ERROR: Target directory does not exist: $TARGET"
         echo "Make sure the drive is mounted or the path is correct."
         exit 1
     fi
 
     for f in "${MOD_FILES[@]}"; do
-        verbose_log "Copying $(basename "$f") to $TARGET/..."
-        log "Copying $(basename "$f")..."
+        log_info_ctx "Copying file" "{\"file\":\"$(basename "$f")\",\"target\":\"$TARGET\"}"
+        echo "Copying $(basename "$f")..."
         cp -v "$f" "$TARGET/"
     done
 fi
 
-log ""
-log "Done. Launch SpaghettiKart to load the mods."
+log_info "Sync complete"
+echo ""
+echo "Done. Launch SpaghettiKart to load the mods."

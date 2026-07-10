@@ -14,6 +14,9 @@ LAB64_TOOLS_VERSION="lab64 tools v0.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Source shared logging library
+. "$SCRIPT_DIR/lib/logging.sh"
+
 QUIET=0
 VERBOSE=0
 DRY_RUN=0
@@ -41,18 +44,6 @@ usage() {
     echo "Example:"
     echo "  $0 dalmatian assets/characters/dalmatian/sprites"
     exit 1
-}
-
-log() {
-    if [ "$QUIET" -eq 0 ]; then
-        echo "$@"
-    fi
-}
-
-verbose_log() {
-    if [ "$VERBOSE" -eq 1 ]; then
-        echo "[VERBOSE] $@"
-    fi
 }
 
 json_result() {
@@ -119,6 +110,9 @@ fi
 CHARACTER="${POSITIONAL[0]}"
 SPRITE_DIR="${POSITIONAL[1]}"
 
+# Initialize logging after flag parsing
+logging_init
+
 if [ -n "$CUSTOM_OUTPUT_DIR" ]; then
     OUTPUT_DIR="$CUSTOM_OUTPUT_DIR"
 else
@@ -127,17 +121,18 @@ fi
 
 CAPITALIZED=$(echo "$CHARACTER" | awk -F'_' '{for(i=1;i<=NF;i++){$i=toupper(substr($i,1,1)) substr($i,2)}}1' OFS='')
 
-verbose_log "Character: $CHARACTER"
-verbose_log "Sprite directory: $SPRITE_DIR"
-verbose_log "Output directory: $OUTPUT_DIR"
-verbose_log "Capitalized name: $CAPITALIZED"
+log_debug "Character: $CHARACTER"
+log_debug "Sprite directory: $SPRITE_DIR"
+log_debug "Output directory: $OUTPUT_DIR"
+log_debug "Capitalized name: $CAPITALIZED"
 
-log "Packing character mod: $CHARACTER"
-log "  Sprite directory: $SPRITE_DIR"
-log "  Output: $OUTPUT_DIR/$CHARACTER.o2r"
+log_info "Packing character mod: $CHARACTER"
+log_info "Sprite directory: $SPRITE_DIR"
+log_info "Output: $OUTPUT_DIR/$CHARACTER.o2r"
 
 # Validate sprite directory exists
 if [ ! -d "$SPRITE_DIR" ]; then
+    log_error "Sprite directory not found: $SPRITE_DIR"
     if [ "$JSON_OUTPUT" -eq 1 ]; then
         json_result "error" "Sprite directory not found: $SPRITE_DIR" "{}"
     else
@@ -151,59 +146,77 @@ ERRORS=0
 DETAILS_KART_FRAMES=0
 DETAILS_FACE_FRAMES=0
 
-verbose_log "Checking kart frames directory..."
+log_debug "Checking kart frames directory..."
 
 # Check kart frames
 KART_DIR="$SPRITE_DIR/${CHARACTER}_kart"
 if [ ! -d "$KART_DIR" ]; then
+    log_error "Kart frames directory not found: $KART_DIR"
     echo "ERROR: Kart frames directory not found: $KART_DIR"
     ERRORS=$((ERRORS + 1))
 else
     FRAME_COUNT=$(find "$KART_DIR" -name "${CHARACTER}_kart_frame*.png" | wc -l | tr -d ' ')
     if [ "$FRAME_COUNT" -eq 0 ]; then
+        log_error "No kart frames found in $KART_DIR"
         echo "ERROR: No kart frames found in $KART_DIR"
         ERRORS=$((ERRORS + 1))
     else
         DETAILS_KART_FRAMES=$FRAME_COUNT
-        log "  Found $FRAME_COUNT kart frames"
+        log_info_ctx "Found kart frames" "{\"count\":$FRAME_COUNT}"
+        if [ "$QUIET" -eq 0 ]; then
+            echo "  Found $FRAME_COUNT kart frames"
+        fi
     fi
 fi
 
-verbose_log "Checking portrait..."
+log_debug "Checking portrait..."
 
 # Check portrait
 PORTRAIT="$SPRITE_DIR/common_texture_portrait_${CHARACTER}.png"
 if [ ! -f "$PORTRAIT" ]; then
+    log_error "Portrait not found: $PORTRAIT"
     echo "ERROR: Portrait not found: $PORTRAIT"
     ERRORS=$((ERRORS + 1))
 else
-    log "  Found portrait"
+    log_info "Found portrait"
+    if [ "$QUIET" -eq 0 ]; then
+        echo "  Found portrait"
+    fi
 fi
 
-verbose_log "Checking face frames..."
+log_debug "Checking face frames..."
 
 # Check face frames
 FACE_COUNT=$(find "$SPRITE_DIR" -name "${CHARACTER}_face_*.png" | wc -l | tr -d ' ')
 if [ "$FACE_COUNT" -lt 17 ]; then
+    log_error "Expected 17 face frames, found $FACE_COUNT"
     echo "ERROR: Expected 17 face frames, found $FACE_COUNT"
     ERRORS=$((ERRORS + 1))
 else
     DETAILS_FACE_FRAMES=$FACE_COUNT
-    log "  Found $FACE_COUNT face frames"
+    log_info_ctx "Found face frames" "{\"count\":$FACE_COUNT}"
+    if [ "$QUIET" -eq 0 ]; then
+        echo "  Found $FACE_COUNT face frames"
+    fi
 fi
 
-verbose_log "Checking nameplate..."
+log_debug "Checking nameplate..."
 
 # Check nameplate
 NAMEPLATE="$SPRITE_DIR/gTexture${CAPITALIZED}.png"
 if [ ! -f "$NAMEPLATE" ]; then
+    log_error "Nameplate not found: $NAMEPLATE"
     echo "ERROR: Nameplate not found: $NAMEPLATE"
     ERRORS=$((ERRORS + 1))
 else
-    log "  Found nameplate"
+    log_info "Found nameplate"
+    if [ "$QUIET" -eq 0 ]; then
+        echo "  Found nameplate"
+    fi
 fi
 
 if [ "$ERRORS" -gt 0 ]; then
+    log_error_ctx "Pack failed: required files missing" "{\"errors\":$ERRORS}"
     if [ "$JSON_OUTPUT" -eq 1 ]; then
         json_result "error" "$ERRORS required file(s) missing" "{\"errors\":$ERRORS}"
     else
@@ -224,19 +237,24 @@ validate_dimensions() {
         w=$(sips -g pixelWidth "$file" 2>/dev/null | tail -1 | awk '{print $2}')
         h=$(sips -g pixelHeight "$file" 2>/dev/null | tail -1 | awk '{print $2}')
         if [ "$w" != "$expected_w" ] || [ "$h" != "$expected_h" ]; then
-            log "WARNING: $file is ${w}x${h}, expected ${expected_w}x${expected_h}"
+            log_warn_ctx "Dimension mismatch" "{\"file\":\"$(basename "$file")\",\"actual\":\"${w}x${h}\",\"expected\":\"${expected_w}x${expected_h}\"}"
+            if [ "$QUIET" -eq 0 ]; then
+                echo "WARNING: $file is ${w}x${h}, expected ${expected_w}x${expected_h}"
+            fi
         fi
     elif command -v identify &>/dev/null; then
         local dims
         dims=$(identify -format "%wx%h" "$file" 2>/dev/null)
         if [ "$dims" != "${expected_w}x${expected_h}" ]; then
-            log "WARNING: $file is $dims, expected ${expected_w}x${expected_h}"
+            log_warn_ctx "Dimension mismatch" "{\"file\":\"$(basename "$file")\",\"actual\":\"$dims\",\"expected\":\"${expected_w}x${expected_h}\"}"
+            if [ "$QUIET" -eq 0 ]; then
+                echo "WARNING: $file is $dims, expected ${expected_w}x${expected_h}"
+            fi
         fi
     fi
 }
 
-log ""
-log "Validating dimensions..."
+log_info "Validating dimensions..."
 validate_dimensions "$PORTRAIT" 32 32
 validate_dimensions "$NAMEPLATE" 64 12
 
@@ -246,13 +264,16 @@ done
 
 # Dry-run: report what would be packaged and exit
 if [ "$DRY_RUN" -eq 1 ]; then
-    log ""
-    log "DRY RUN: Would package the following into $OUTPUT_DIR/$CHARACTER.o2r:"
-    log "  Kart frames: $DETAILS_KART_FRAMES files from $KART_DIR/"
-    log "  Portrait: $(basename "$PORTRAIT")"
-    log "  Face frames: $DETAILS_FACE_FRAMES files"
-    log "  Nameplate: $(basename "$NAMEPLATE")"
-    log "  mods.toml: auto-generated"
+    log_info_ctx "Dry run complete" "{\"character\":\"$CHARACTER\",\"kart_frames\":$DETAILS_KART_FRAMES,\"face_frames\":$DETAILS_FACE_FRAMES}"
+    if [ "$QUIET" -eq 0 ]; then
+        echo ""
+        echo "DRY RUN: Would package the following into $OUTPUT_DIR/$CHARACTER.o2r:"
+        echo "  Kart frames: $DETAILS_KART_FRAMES files from $KART_DIR/"
+        echo "  Portrait: $(basename "$PORTRAIT")"
+        echo "  Face frames: $DETAILS_FACE_FRAMES files"
+        echo "  Nameplate: $(basename "$NAMEPLATE")"
+        echo "  mods.toml: auto-generated"
+    fi
 
     if [ "$JSON_OUTPUT" -eq 1 ]; then
         json_result "success" "Dry run complete" \
@@ -261,27 +282,26 @@ if [ "$DRY_RUN" -eq 1 ]; then
     exit 0
 fi
 
-verbose_log "Creating staging directory..."
+log_debug "Creating staging directory..."
 
 # Create staging directory
 STAGING=$(mktemp -d)
 trap 'rm -rf "$STAGING"' EXIT
 
-log ""
-log "Building mod structure..."
+log_info "Building mod structure..."
 
-verbose_log "Copying kart frames to staging..."
+log_debug "Copying kart frames to staging..."
 
 # Copy character files into staging
 mkdir -p "$STAGING/${CHARACTER}_kart"
 cp "$KART_DIR"/${CHARACTER}_kart_frame*.png "$STAGING/${CHARACTER}_kart/"
 
-verbose_log "Copying portrait, faces, nameplate to staging..."
+log_debug "Copying portrait, faces, nameplate to staging..."
 cp "$PORTRAIT" "$STAGING/"
 cp "$SPRITE_DIR"/${CHARACTER}_face_*.png "$STAGING/"
 cp "$NAMEPLATE" "$STAGING/"
 
-verbose_log "Generating mods.toml..."
+log_debug "Generating mods.toml..."
 
 # Generate mods.toml for this character
 cat > "$STAGING/mods.toml" << TOML
@@ -298,22 +318,24 @@ TOML
 mkdir -p "$OUTPUT_DIR"
 O2R_FILE="$OUTPUT_DIR/$CHARACTER.o2r"
 
-verbose_log "Removing existing archive if present..."
+log_debug "Removing existing archive if present..."
 
 # Remove existing archive if present
 rm -f "$O2R_FILE"
 
-verbose_log "Creating zip archive..."
+log_debug "Creating zip archive..."
 
 # Create zip and rename to .o2r
 (cd "$STAGING" && zip -r "$O2R_FILE" . -x ".*") >/dev/null 2>&1
+
+log_info_ctx "Archive created" "{\"output\":\"$O2R_FILE\",\"character\":\"$CHARACTER\",\"kart_frames\":$DETAILS_KART_FRAMES,\"face_frames\":$DETAILS_FACE_FRAMES}"
 
 if [ "$JSON_OUTPUT" -eq 1 ]; then
     local_size=$(du -sh "$O2R_FILE" 2>/dev/null | awk '{print $1}' || echo "unknown")
     json_result "success" "Created $O2R_FILE" \
         "{\"character\":\"$CHARACTER\",\"output\":\"$O2R_FILE\",\"kart_frames\":$DETAILS_KART_FRAMES,\"face_frames\":$DETAILS_FACE_FRAMES,\"size\":\"$local_size\"}"
 else
-    log ""
-    log "SUCCESS: Created $O2R_FILE"
-    log "  Copy to SpaghettiKart mods/ folder to use."
+    echo ""
+    echo "SUCCESS: Created $O2R_FILE"
+    echo "  Copy to SpaghettiKart mods/ folder to use."
 fi
