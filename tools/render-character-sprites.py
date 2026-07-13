@@ -7,7 +7,7 @@ Usage:
         --character dalmatian \
         --blend-file assets/characters/dalmatian/dalmatian.blend \
         [--rotations 16] \
-        [--resolution 64] \
+        [--resolution 128] \
         [--output-dir assets/characters/dalmatian/sprites]
 
 Renders:

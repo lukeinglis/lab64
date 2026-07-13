@@ -179,9 +179,8 @@ Use **3-tone shading**: base color, highlight band, shadow band — NOT smooth g
 
 ### Lighting
 
-- **Flat lighting**: ambient hemisphere fill (strength 0.7-0.8) + subtle directional Sun at 45° (strength 0.3-0.5)
+- **Two-point Sun lighting**: key light at energy 3.0 and fill light at energy 1.5. The render script configures this automatically via `setup_flat_lighting()`.
 - Avoid harsh shadows — they look wrong when billboarded in-game
-- The render script's `setup_flat_lighting()` configures this automatically
 
 ### Readability Targets
 
