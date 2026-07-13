@@ -8,6 +8,7 @@ so we mock sys.argv to simulate Blender's invocation pattern.
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import sys
 from types import ModuleType
@@ -141,6 +142,82 @@ class TestParseArgs:
             ):
                 args = render.parse_args()
                 assert args.character == char
+
+
+class TestValidateConfig:
+    def test_validate_config_flag(self) -> None:
+        with patch.object(
+            sys,
+            "argv",
+            ["blender", "--", "--validate-config"],
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                render.parse_args()
+            assert exc_info.value.code == 0
+
+    def test_validate_config_json(self, capsys: pytest.CaptureFixture[str]) -> None:
+        with patch.object(
+            sys,
+            "argv",
+            ["blender", "--", "--validate-config", "--json"],
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                render.parse_args()
+            assert exc_info.value.code == 0
+            captured = capsys.readouterr()
+            result = json.loads(captured.out)
+            assert result["status"] == "pass"
+            assert "checks" in result["details"]
+            assert len(result["details"]["checks"]) == 5
+
+    def test_validate_config_bad_resolution(self) -> None:
+        with patch.object(
+            sys,
+            "argv",
+            ["blender", "--", "--validate-config", "--resolution", "50"],
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                render.parse_args()
+            assert exc_info.value.code == 1
+
+    def test_validate_config_bad_rotations(self) -> None:
+        with patch.object(
+            sys,
+            "argv",
+            ["blender", "--", "--validate-config", "--rotations", "8"],
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                render.parse_args()
+            assert exc_info.value.code == 1
+
+
+class TestListSlots:
+    def test_list_slots_flag(self, capsys: pytest.CaptureFixture[str]) -> None:
+        with patch.object(
+            sys,
+            "argv",
+            ["blender", "--", "--list-slots"],
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                render.parse_args()
+            assert exc_info.value.code == 0
+            captured = capsys.readouterr()
+            assert "dalmatian" in captured.out
+            assert "donkey_kong" in captured.out
+
+    def test_list_slots_json(self, capsys: pytest.CaptureFixture[str]) -> None:
+        with patch.object(
+            sys,
+            "argv",
+            ["blender", "--", "--list-slots", "--json"],
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                render.parse_args()
+            assert exc_info.value.code == 0
+            captured = capsys.readouterr()
+            result = json.loads(captured.out)
+            assert result["status"] == "success"
+            assert "assignments" in result["details"]
 
 
 class TestMainRequiresBlender:
