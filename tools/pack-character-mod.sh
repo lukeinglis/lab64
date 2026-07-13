@@ -124,25 +124,31 @@ MODS_TOML="$PROJECT_ROOT/mods/animal-pack/mods.toml"
 if [ -f "$MODS_TOML" ]; then
     TOML_ERRORS=0
 
-    for field in name version description author; do
-        if ! grep -qiE "^${field}\s*=" "$MODS_TOML"; then
+    for field in name version description; do
+        if ! grep -qE "^${field}\s*=" "$MODS_TOML"; then
             log_error "mods.toml missing required field: $field"
             echo "ERROR: mods.toml missing required field: $field" >&2
             TOML_ERRORS=$((TOML_ERRORS + 1))
         fi
     done
 
-    if grep -qiE '=\s*"TBD"' "$MODS_TOML"; then
+    if ! grep -qE '^\[mod\.authors\]' "$MODS_TOML"; then
+        log_error "mods.toml missing [mod.authors] section"
+        echo "ERROR: mods.toml missing [mod.authors] section" >&2
+        TOML_ERRORS=$((TOML_ERRORS + 1))
+    fi
+
+    if grep -qE '=\s*"TBD"' "$MODS_TOML"; then
         log_error "mods.toml contains TBD placeholder values"
         echo "ERROR: mods.toml contains TBD placeholder values — fill in all fields before packaging" >&2
         TOML_ERRORS=$((TOML_ERRORS + 1))
     fi
 
-    if ! grep -qiE "^\[assignments\]" "$MODS_TOML"; then
+    if ! grep -qE '^\[assignments\]' "$MODS_TOML"; then
         log_error "mods.toml missing [assignments] section"
         echo "ERROR: mods.toml missing [assignments] section" >&2
         TOML_ERRORS=$((TOML_ERRORS + 1))
-    elif ! grep -qiE "^${CHARACTER}\s*=" "$MODS_TOML"; then
+    elif ! sed -n '/^\[assignments\]/,/^\[/p' "$MODS_TOML" | grep -qE "^${CHARACTER}\s*="; then
         log_error "No slot assignment found for character '$CHARACTER' in mods.toml"
         echo "ERROR: No slot assignment for '$CHARACTER' in mods.toml [assignments] section" >&2
         TOML_ERRORS=$((TOML_ERRORS + 1))

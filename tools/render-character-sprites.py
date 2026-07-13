@@ -217,7 +217,7 @@ def parse_args() -> argparse.Namespace:
 
     if args.validate_config:
         _validate_config(args.rotations, args.resolution, args.json_output)
-        # _validate_config calls sys.exit internally
+        sys.exit(0)
 
     if args.list_slots:
         _list_slots(args.json_output)
@@ -280,10 +280,6 @@ MK64_RACERS: dict[str, str] = {
     "wario": "Heavy",
     "bowser": "Heavy",
 }
-
-
-def _is_power_of_2(n: int) -> bool:
-    return n > 0 and (n & (n - 1)) == 0
 
 
 def _validate_config(

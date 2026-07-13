@@ -13,7 +13,7 @@ Each character requires **35 sprites** total:
 | Portrait icon | 1 | 32x32 | PNG RGBA | `common_texture_portrait_{char}.png` |
 | Nameplate | 1 | 64x12 | PNG RGBA | `gTexture{Char}.png` |
 
-All dimensions must be power-of-2 (32, 64, 128, 256). The 16 kart frames cover a full 360° rotation at **22.5° intervals**.
+All dimensions must be power-of-2 (32, 64, 128, 256), except nameplates which use 64x12. The 16 kart frames cover a full 360° rotation at **22.5° intervals**.
 
 ### Kart Frame Rotation Layout
 

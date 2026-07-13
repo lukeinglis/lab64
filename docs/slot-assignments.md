@@ -28,4 +28,4 @@ Each animal is visually distinct from the others and from the original character
 - **Orange Cat** (orange tabby) replaces Bowser — bright orange is visible at all zoom levels
 
 ### Slot Availability
-The four replaced characters (Donkey Kong, Wario, Luigi, Bowser) were chosen because they are not part of the default single-player progression unlocks, minimizing disruption to normal gameplay when the mod is loaded.
+These four slots were chosen to leave the classic starter picks (Mario, Peach, Yoshi, Toad) available for players who prefer the originals, while replacing the heavier/less-popular characters with our custom animals. Luigi is included because Black Cat needed a medium-weight slot.

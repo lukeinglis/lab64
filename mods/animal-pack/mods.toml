@@ -1,37 +1,14 @@
+# Requires SpaghettiKart nightly build
 [mod]
 name = "Lab 64: Animal Pack"
 version = "0.1.0"
 description = "Custom animal character replacements for team play. Replaces four racers with Dalmatian, Yellow Lab, Black Cat, and Orange Cat."
-author = "Lab 64 Team"
 
 [mod.authors]
 names = ["Lab 64 Team"]
-
-[compatibility]
-spaghettikart_version = "nightly"
 
 [assignments]
 dalmatian = "donkey_kong"
 yellow_lab = "wario"
 black_cat = "luigi"
 orange_cat = "bowser"
-
-[mod.characters.dalmatian]
-type = "dog"
-slot = "donkey_kong"
-weight_class = "heavy"
-
-[mod.characters.yellow_lab]
-type = "dog"
-slot = "wario"
-weight_class = "heavy"
-
-[mod.characters.black_cat]
-type = "cat"
-slot = "luigi"
-weight_class = "medium"
-
-[mod.characters.orange_cat]
-type = "cat"
-slot = "bowser"
-weight_class = "heavy"
