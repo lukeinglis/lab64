@@ -7,7 +7,7 @@ Usage:
         --character dalmatian \
         --blend-file assets/characters/dalmatian/dalmatian.blend \
         [--rotations 16] \
-        [--resolution 64] \
+        [--resolution 128] \
         [--output-dir assets/characters/dalmatian/sprites]
 
 Renders:
@@ -155,8 +155,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--resolution",
         type=int,
-        default=64,
-        help="Resolution for kart frame sprites in pixels (default: 64)",
+        default=128,
+        help="Resolution for kart frame sprites in pixels (default: 128; 64 minimum, 256 high quality)",
     )
     parser.add_argument(
         "--output-dir",

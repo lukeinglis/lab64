@@ -79,7 +79,7 @@ class TestParseArgs:
             assert args.character == "dalmatian"
             assert args.blend_file == "/path/to/model.blend"
             assert args.rotations == 16
-            assert args.resolution == 64
+            assert args.resolution == 128
             assert args.output_dir is None
 
     def test_custom_rotations_and_resolution(self):
