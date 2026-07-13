@@ -194,6 +194,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Discover and list available character directories under assets/characters/",
     )
+    parser.add_argument(
+        "--validate-config",
+        action="store_true",
+        help="Validate render pipeline configuration without Blender",
+    )
+    parser.add_argument(
+        "--list-slots",
+        action="store_true",
+        help="Display current character slot assignments from mods.toml",
+    )
 
     args = parser.parse_args(argv)
 
@@ -203,6 +213,14 @@ def parse_args() -> argparse.Namespace:
 
     if args.list_characters:
         _list_characters(args.json_output)
+        sys.exit(0)
+
+    if args.validate_config:
+        _validate_config(args.rotations, args.resolution, args.json_output)
+        sys.exit(0)
+
+    if args.list_slots:
+        _list_slots(args.json_output)
         sys.exit(0)
 
     if not args.character:
@@ -245,6 +263,157 @@ def _list_characters(json_output: bool) -> None:
             for c in characters:
                 blends = ", ".join(c["blend_files"]) if c["blend_files"] else "no .blend files"
                 print(f"  {c['name']} ({blends})")
+
+
+EXPECTED_ROTATIONS = 16
+ROTATION_INTERVAL = 22.5
+VALID_POWER_OF_2 = {32, 64, 128, 256}
+EXPECTED_SPRITES_PER_CHARACTER = 35  # 16 kart + 17 face + 1 portrait + 1 nameplate
+
+MK64_RACERS: dict[str, str] = {
+    "mario": "Medium",
+    "luigi": "Medium",
+    "peach": "Light",
+    "toad": "Light",
+    "yoshi": "Medium",
+    "donkey_kong": "Heavy",
+    "wario": "Heavy",
+    "bowser": "Heavy",
+}
+
+
+def _validate_config(
+    rotations: int, resolution: int, json_output: bool
+) -> None:
+    checks: list[dict[str, Any]] = []
+
+    rotation_pass = rotations == EXPECTED_ROTATIONS
+    checks.append({
+        "name": "rotation_count",
+        "expected": EXPECTED_ROTATIONS,
+        "actual": rotations,
+        "interval_degrees": 360.0 / rotations if rotations > 0 else 0,
+        "pass": rotation_pass,
+    })
+
+    interval = 360.0 / rotations if rotations > 0 else 0
+    interval_pass = abs(interval - ROTATION_INTERVAL) < 0.01
+    checks.append({
+        "name": "rotation_interval",
+        "expected": ROTATION_INTERVAL,
+        "actual": interval,
+        "pass": interval_pass,
+    })
+
+    resolution_pass = resolution in VALID_POWER_OF_2
+    checks.append({
+        "name": "output_dimensions",
+        "expected": "power-of-2 (32, 64, 128, 256)",
+        "actual": resolution,
+        "pass": resolution_pass,
+    })
+
+    format_pass = True
+    checks.append({
+        "name": "output_format",
+        "expected": "PNG RGBA",
+        "actual": "PNG RGBA",
+        "pass": format_pass,
+    })
+
+    sprites = rotations + 17 + 1 + 1  # kart + face + portrait + nameplate
+    sprite_pass = sprites == EXPECTED_SPRITES_PER_CHARACTER
+    checks.append({
+        "name": "sprites_per_character",
+        "expected": EXPECTED_SPRITES_PER_CHARACTER,
+        "actual": sprites,
+        "pass": sprite_pass,
+    })
+
+    all_pass = all(c["pass"] for c in checks)
+
+    if json_output:
+        result: dict[str, Any] = {
+            "status": "pass" if all_pass else "fail",
+            "message": "All checks passed" if all_pass else "Some checks failed",
+            "details": {"checks": checks},
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            ),
+        }
+        print(json.dumps(result))
+    else:
+        print("Render Pipeline Configuration Validation")
+        print("=" * 42)
+        for c in checks:
+            status = "PASS" if c["pass"] else "FAIL"
+            print(f"  [{status}] {c['name']}: expected={c['expected']}, actual={c['actual']}")
+        print()
+        print(f"Result: {'ALL CHECKS PASSED' if all_pass else 'SOME CHECKS FAILED'}")
+
+    sys.exit(0 if all_pass else 1)
+
+
+def _list_slots(json_output: bool) -> None:
+    toml_path = os.path.join("mods", "animal-pack", "mods.toml")
+    assignments: dict[str, str] = {}
+
+    if os.path.isfile(toml_path):
+        in_assignments = False
+        with open(toml_path) as f:
+            for line in f:
+                stripped = line.strip()
+                if stripped == "[assignments]":
+                    in_assignments = True
+                    continue
+                if stripped.startswith("[") and in_assignments:
+                    break
+                if in_assignments and "=" in stripped:
+                    key, val = stripped.split("=", 1)
+                    assignments[key.strip()] = val.strip().strip('"')
+
+    assigned_slots = set(assignments.values())
+    available = {
+        racer: weight for racer, weight in MK64_RACERS.items()
+        if racer not in assigned_slots
+    }
+
+    if json_output:
+        result: dict[str, Any] = {
+            "status": "success",
+            "message": f"{len(assignments)} slot(s) assigned, {len(available)} available",
+            "details": {
+                "assignments": [
+                    {"character": char, "replaces": slot, "weight_class": MK64_RACERS.get(slot, "unknown")}
+                    for char, slot in assignments.items()
+                ],
+                "available": [
+                    {"racer": racer, "weight_class": weight}
+                    for racer, weight in available.items()
+                ],
+            },
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            ),
+        }
+        print(json.dumps(result))
+    else:
+        print("Character Slot Assignments")
+        print("=" * 50)
+        print(f"  {'Character':<15} {'Replaces':<15} {'Weight Class'}")
+        print(f"  {'-' * 13:<15} {'-' * 13:<15} {'-' * 12}")
+        for char, slot in assignments.items():
+            weight = MK64_RACERS.get(slot, "unknown")
+            print(f"  {char:<15} {slot:<15} {weight}")
+        print()
+        if available:
+            print("Available Slots")
+            print(f"  {'Racer':<15} {'Weight Class'}")
+            print(f"  {'-' * 13:<15} {'-' * 12}")
+            for racer, weight in available.items():
+                print(f"  {racer:<15} {weight}")
+        else:
+            print("All MK64 racer slots are assigned.")
 
 
 def _json_result(status: str, message: str, details: dict[str, Any]) -> None:

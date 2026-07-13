@@ -185,3 +185,41 @@ Download from the SpaghettiKart Discord or modding community.
 - [SpaghettiKart Modding Guide](https://harbourmasters.github.io/SpaghettiKart/md_docs_2modding.html)
 - [GameBanana MK64 Hub](https://gamebanana.com/games/6558) (community mods, tutorials, Q&A)
 - [Racer Ready-Up Tool](https://vinievex.itch.io/racer-ready-up)
+
+---
+
+## Research Citations
+
+### Official Documentation
+
+- [SpaghettiKart Custom Characters Guide](https://harbourmasters.github.io/SpaghettiKart/md_docs_2custom-characters.html) — primary source for sprite specifications (16 kart frames, 17 face frames, portrait, nameplate), naming conventions, and mod structure requirements
+
+### Community Mod Examples
+
+Published SpaghettiKart character mods that demonstrate the replacement workflow and serve as reference implementations:
+
+| Mod | Author | Downloads | Source |
+|---|---|---|---|
+| Link | Hato | 635+ | [Thunderstore](https://thunderstore.io/c/spaghetti-kart/) |
+| Kris | sitton76 | — | [Thunderstore](https://thunderstore.io/c/spaghetti-kart/) |
+| Ralsei | sitton76 | — | [Thunderstore](https://thunderstore.io/c/spaghetti-kart/) |
+| Kazz | — | — | [Thunderstore](https://thunderstore.io/c/spaghetti-kart/) |
+
+These mods confirm that the character replacement workflow is proven and that community modders are actively producing and distributing custom characters.
+
+### Racer Ready-Up Tool Evaluation
+
+[Racer Ready-Up](https://vinievex.itch.io/racer-ready-up) by VinieVex:
+- **Platforms**: Windows, Linux
+- **Features**: Built-in nameplate generator, file organization helper, character assembly workflow
+- **Requirement**: Needs a **nightly** SpaghettiKart build (not stable)
+- **Evaluation**: Useful for nameplate generation and as a reference for expected file structure. May supplement or partially replace custom pipeline tooling for certain steps.
+
+### Mod Distribution Platforms
+
+- [Thunderstore — SpaghettiKart](https://thunderstore.io/c/spaghetti-kart/) — primary mod distribution platform for SpaghettiKart, includes character skins, gameplay mods, and cosmetics
+- [GameBanana — SpaghettiKart](https://gamebanana.com/games/22970) — alternative mod hosting with community ratings and screenshots
+
+### Community
+
+- [SpaghettiKart Discord](https://discord.com/invite/shipofharkinian) — active community for mod development support, sharing work-in-progress, and troubleshooting

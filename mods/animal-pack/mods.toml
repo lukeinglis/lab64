@@ -1,3 +1,4 @@
+# Requires SpaghettiKart nightly build
 [mod]
 name = "Lab 64: Animal Pack"
 version = "0.1.0"
@@ -6,23 +7,8 @@ description = "Custom animal character replacements for team play. Replaces four
 [mod.authors]
 names = ["Lab 64 Team"]
 
-[mod.characters]
-# Each character replaces an existing racer slot.
-# Slot assignments are TBD pending owner confirmation.
-# Default assumptions: Mario -> Dalmatian, Luigi -> Yellow Lab, Peach -> Black Cat, Toad -> Orange Cat
-
-[mod.characters.dalmatian]
-type = "dog"
-slot = "TBD"
-
-[mod.characters.yellow_lab]
-type = "dog"
-slot = "TBD"
-
-[mod.characters.black_cat]
-type = "cat"
-slot = "TBD"
-
-[mod.characters.orange_cat]
-type = "cat"
-slot = "TBD"
+[assignments]
+dalmatian = "donkey_kong"
+yellow_lab = "wario"
+black_cat = "luigi"
+orange_cat = "bowser"

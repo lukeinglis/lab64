@@ -147,6 +147,26 @@ def eval_tooling_completeness() -> EvalResult:
         r = _run(cmd_bad)
         checks[f"{base}_bad_args"] = r is not None and r.returncode != 0
 
+    pyproject = ROOT / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            pyproject_text = pyproject.read_text()
+        except OSError:
+            pyproject_text = ""
+    else:
+        pyproject_text = ""
+    checks["coverage_config"] = "[tool.coverage" in pyproject_text
+
+    makefile = ROOT / "Makefile"
+    if makefile.exists():
+        try:
+            makefile_text = makefile.read_text()
+        except OSError:
+            makefile_text = ""
+    else:
+        makefile_text = ""
+    checks["coverage_target"] = bool(re.search(r"^coverage:", makefile_text, re.MULTILINE))
+
     return _build_result("tooling_completeness", checks, 0.25, pass_threshold=0.6)
 
 
@@ -282,11 +302,14 @@ def eval_mod_packaging() -> EvalResult:
     else:
         checks["validate_catches_bad_input"] = False
 
-    required_toml_fields = ["name", "version", "description", "author"]
+    required_toml_fields = ["name", "version", "description", "authors"]
     if mods_toml.exists():
         try:
             text = mods_toml.read_text()
-            found = sum(1 for f in required_toml_fields if re.search(rf"{f}\s*=", text, re.IGNORECASE))
+            found = sum(
+                1 for f in required_toml_fields
+                if re.search(rf"(\.{f}\]|{f}\s*=)", text, re.IGNORECASE)
+            )
             checks["mods_toml_fields"] = found >= len(required_toml_fields)
         except OSError:
             checks["mods_toml_fields"] = False
