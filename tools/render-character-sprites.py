@@ -155,8 +155,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--resolution",
         type=int,
-        default=64,
-        help="Resolution for kart frame sprites in pixels (default: 64)",
+        default=128,
+        help="Resolution for kart frame sprites in pixels (default: 128; 64 minimum, 256 high quality)",
     )
     parser.add_argument(
         "--output-dir",
